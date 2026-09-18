@@ -7,17 +7,16 @@ export const todoSchema = v.object({
 
     title: v.pipe(v.string(), v.trim(), v.nonEmpty("Can't be empty")),
     content: v.nullish(v.string(), null),
-    due_date: v.pipe(v.string()),
+    due_date: v.pipe(v.string(), v.transform((str: string) => new Date(str)), v.date(), v.toMinValue(new Date())),
     done: v.boolean()
 })
 
 export type Todo = v.InferOutput<typeof todoSchema>;
 
 // v.object create an object that let me rule sending data
-// v.InferOutput<typeof todoSchema> create a "real type" usable for typeScript
-
-// verifier si title et content a une espace
-// verifier si c'est vraiment une date et si c'est espace
+// v.InferOutput<typeof todoSchema> create a "real type" usable for typeScript.
+// v.transform changes type from string to date here.
+// my v.toMinValue is to check if the current date is on the past.
 
 // === DB ===
 
@@ -55,7 +54,7 @@ export function createTodo(todo: Todo) {
     ).run({
         $title: todo.title,
         $content: todo.content,
-        $due_date: todo.due_date,
+        $due_date: todo.due_date.toISOString(),
         $done: todo.done,
     });
 
@@ -87,7 +86,13 @@ export async function postTodosController(req: Request) {
         const created = createTodo(result.output);
         return Response.json(created, { status: 201 });
 
-    } catch {
-        return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            return Response.json({ error: "Invalid JSON" }, { status: 400 })
+        }
+        return Response.json({ error: `Something went wrong: ${error}` }, { status: 500 });
     }
 }
+
+// safeParse Parses an unknown input based on a schema.
+// instanceof check if the data was created with the right type
