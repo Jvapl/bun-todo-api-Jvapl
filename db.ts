@@ -7,7 +7,7 @@ export const todoSchema = v.object({
 
     title: v.pipe(v.string(), v.trim(), v.nonEmpty("Can't be empty")),
     content: v.nullish(v.string(), null),
-    due_date: v.pipe(v.string(), v.transform((str: string) => new Date(str)), v.date(), v.toMinValue(new Date())),
+    due_date: v.pipe(v.string(), v.transform((str: string) => new Date(str)), v.date()),
     done: v.boolean()
 })
 
@@ -90,7 +90,7 @@ export async function postTodosController(req: Request) {
         if (error instanceof SyntaxError) {
             return Response.json({ error: "Invalid JSON" }, { status: 400 })
         }
-        return Response.json({ error: `Something went wrong: ${error}` }, { status: 500 });
+        return Response.json({ error: `Internal server error` }, { status: 500 });
     }
 }
 
