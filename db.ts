@@ -10,6 +10,7 @@ export const todoSchema = v.object({
     content: v.nullish((v.string()), null),
     due_date: v.nullish(v.pipe(
         v.string(),
+        v.isoDate('valid date request (YYYY--MM-DD)')
     ), null),
     done: v.pipe(v.boolean(), v.transform((boll) => boll ? 1 : 0)),
 })
@@ -82,7 +83,7 @@ const pathTodo = async (toUpdateTask: Todo) => {
         $done: toUpdateTask.done ? 1 : 0,
     })
 
-    return await db.query(`select * from todos where id = ? returning *`).get(toUpdateTask.id)
+    return await db.query(`select * from todos where id = ? `).get(toUpdateTask.id)
 }
 
 // body : unknown its the function doesn't know what he's going to get that's why unknown
