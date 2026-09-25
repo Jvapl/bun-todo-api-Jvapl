@@ -1,22 +1,30 @@
 import { Database } from "bun:sqlite";
 import * as v from "valibot"
+import { omit } from "valibot";
 
 // === Valibot ===
 
 export const todoSchema = v.object({
     id: v.number(),
     title: v.pipe(v.string(), v.trim(), v.nonEmpty("Can't be empty")),
-    content: v.nullish(v.string(), null),
-    due_date: v.pipe(v.string(), v.transform((str: string) => new Date(str)), v.date()),
-    done: v.boolean()
+    content: v.nullish((v.string()), null),
+    due_date: v.nullish(v.pipe(
+        v.string(),
+    ), null),
+    done: v.pipe(v.boolean(), v.transform((boll) => boll ? 1 : 0)),
 })
 
 export type Todo = v.InferOutput<typeof todoSchema>;
 
+const toCreateTodoSchema = v.omit(todoSchema, ['id'])
+
+export type toCreateTodo = v.InferOutput<typeof toCreateTodoSchema>
+
 // v.object create an object that let me rule sending data
 // v.InferOutput<typeof todoSchema> create a "real type" usable for typeScript.
 // v.transform changes type from string to date here.
-// my v.toMinValue is to check if the current date is on the past.
+// my v.toMinValue is to check if the current date is on the past.  
+// Omit it's when we remove one line of type.
 
 // === DB ===
 
@@ -47,14 +55,14 @@ const getTodos = async () => {
     return await db.query("select * from todos").all();
 }
 
-const createTodo = async (todo: Todo) => {
+const createTodo = async (todo: toCreateTodo) => {
     const { lastInsertRowid } = db.query(
         `insert into todos (title, content, due_date, done)
         values ($title, $content, $due_date, $done)`
     ).run({
         $title: todo.title,
         $content: todo.content,
-        $due_date: todo.due_date.toISOString(),
+        $due_date: todo.due_date ?? null,
         $done: todo.done,
     });
 
@@ -62,6 +70,7 @@ const createTodo = async (todo: Todo) => {
 }
 
 const pathTodo = async (toUpdateTask: Todo) => {
+
     const updateTodo = db.prepare(`
             update todos set title = $title, content = $content ,due_date = $date, done = $done where id = $id `)
 
@@ -69,11 +78,11 @@ const pathTodo = async (toUpdateTask: Todo) => {
         $id: toUpdateTask.id,
         $title: toUpdateTask.title,
         $content: toUpdateTask.content,
-        $date: toUpdateTask.due_date.toISOString(),
-        $done: toUpdateTask.done,
+        $date: toUpdateTask.due_date || null,
+        $done: toUpdateTask.done ? 1 : 0,
     })
 
-    return await db.query(`select * from todos where id = ? `).get(toUpdateTask.id)
+    return await db.query(`select * from todos where id = ? returning *`).get(toUpdateTask.id)
 }
 
 // body : unknown its the function doesn't know what he's going to get that's why unknown
@@ -84,8 +93,12 @@ const pathTodo = async (toUpdateTask: Todo) => {
 // === Controllers ===
 
 export const getTodosController = async () => {
-    const todos = await getTodos();
-    return Response.json(todos);
+    try {
+        const todos = await getTodos();
+        return Response.json(todos);
+    } catch {
+        return Response.json({ error: `Internal server error` }, { status: 500 })
+    }
 }
 
 export const postTodosController = async (req: Request) => {
@@ -113,6 +126,9 @@ export const postTodosController = async (req: Request) => {
 // instanceof check if the data was created with the right type
 
 export const pathTodosController = async (req: Request) => {
+    if (!req.json) {
+        return Response.json({ error: `Nothing to Update`, status: 200 })
+    }
     try {
         const body = await req.json();
         const result = v.safeParse(todoSchema, body);
