@@ -1,17 +1,21 @@
 import { Database } from "bun:sqlite";
 import * as v from "valibot"
-import { omit } from "valibot";
 
 // === Valibot ===
+const isoDateOrTimestamp = v.union(
+    [
+        v.pipe(v.string(), v.isoDate()),
+        v.pipe(v.string(), v.isoTimestamp())
+    ],
+    "Invalid date format."
+)
+// v.union verify this two formats at the same time 
 
 export const todoSchema = v.object({
     id: v.number(),
     title: v.pipe(v.string(), v.trim(), v.nonEmpty("Can't be empty")),
     content: v.nullish((v.string()), null),
-    due_date: v.nullish(v.pipe(
-        v.string(),
-        v.isoDate('valid date request (YYYY--MM-DD)')
-    ), null),
+    due_date: v.nullish(isoDateOrTimestamp, null),
     done: v.pipe(v.boolean(), v.transform((boll) => boll ? 1 : 0)),
 })
 
@@ -105,7 +109,7 @@ export const getTodosController = async () => {
 export const postTodosController = async (req: Request) => {
     try {
         const body = await req.json();
-        const result = v.safeParse(todoSchema, body);
+        const result = v.safeParse(toCreateTodoSchema, body);
         if (!result.success) {
             return Response.json(
                 { error: "Validation error", issues: result.issues },
