@@ -171,8 +171,7 @@ interface RequestParams extends Request {
 
 export const deleteTodosController = async (req: RequestParams) => {
     try {
-        const idFromURL = req.params.id
-        const result = v.safeParse(deleteTodoSchema, { id: Number(idFromURL) })
+        const result = v.safeParse(deleteTodoSchema, { id: req.params.id })
 
         if (!result.success) {
             return Response.json(
