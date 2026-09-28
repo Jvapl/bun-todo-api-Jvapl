@@ -101,7 +101,7 @@ const pathTodo = async (toUpdateTask: Todo) => {
 // safeParse : take what I did with object
 
 const deleteTodo = async (id: number): Promise<{ changes: number, lastInsertRowid: number | bigint }> => {
-    const result = db.query(`delete from todos where id = $id`).run({ $id: id })
+    const result: { changes: number, lastInsertRowid: number | bigint } = db.query(`delete from todos where id = $id`).run({ $id: id })
     return result
 }
 
