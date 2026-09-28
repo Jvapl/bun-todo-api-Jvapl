@@ -9,7 +9,7 @@ const server = Bun.serve({
             POST: (req) => postTodosController(req),
             PATCH: (req) => pathTodosController(req)
         },
-        "/todo/:id": {
+        "/todos/:id": {
             DELETE: (req) => deleteTodosController(req)
         }
     }

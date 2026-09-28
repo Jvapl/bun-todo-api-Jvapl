@@ -26,7 +26,11 @@ const toCreateTodoSchema = v.omit(todoSchema, ['id'])
 export type toCreateTodo = v.InferOutput<typeof toCreateTodoSchema>
 
 const deleteTodoSchema = v.object({
-    id: v.number("Need to be a number")
+    id: v.pipe(
+        v.string(),
+        v.transform(Number),
+        v.integer()
+    )
 })
 
 // v.object create an object that let me rule sending data
@@ -96,7 +100,7 @@ const pathTodo = async (toUpdateTask: Todo) => {
 // body : unknown its the function doesn't know what he's going to get that's why unknown
 // safeParse : take what I did with object
 
-const deleteTodo = async (id: number) => {
+const deleteTodo = async (id: number): Promise<{ changes: number, lastInsertRowid: number | bigint }> => {
     const result = db.query(`delete from todos where id = $id`).run({ $id: id })
     return result
 }
