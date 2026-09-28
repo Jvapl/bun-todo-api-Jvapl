@@ -1,4 +1,4 @@
-import { postTodosController, getTodosController } from "./db"
+import { postTodosController, getTodosController, pathTodosController } from "./db"
 
 const server = Bun.serve({
     port: 3000,
@@ -6,7 +6,8 @@ const server = Bun.serve({
         "/": () => Response.redirect('/todos'),
         "/todos": {
             GET: () => getTodosController(),
-            POST: (req) => postTodosController(req)
+            POST: (req) => postTodosController(req),
+            PATCH: (req) => pathTodosController(req)
         }
     }
 })
