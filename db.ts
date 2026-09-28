@@ -75,7 +75,6 @@ const createTodo = async (todo: toCreateTodo) => {
 }
 
 const pathTodo = async (toUpdateTask: Todo) => {
-
     const updateTodo = db.prepare(`
             update todos set title = $title, content = $content ,due_date = $date, done = $done where id = $id `)
 
