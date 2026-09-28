@@ -25,6 +25,10 @@ const toCreateTodoSchema = v.omit(todoSchema, ['id'])
 
 export type toCreateTodo = v.InferOutput<typeof toCreateTodoSchema>
 
+const deleteTodoSchema = v.object({
+    id: v.number("Need to be a number")
+})
+
 // v.object create an object that let me rule sending data
 // v.InferOutput<typeof todoSchema> create a "real type" usable for typeScript.
 // v.transform changes type from string to date here.
@@ -91,8 +95,11 @@ const pathTodo = async (toUpdateTask: Todo) => {
 
 // body : unknown its the function doesn't know what he's going to get that's why unknown
 // safeParse : take what I did with object
-// db.query(`SELECT * FROM todos WHERE id = ?`).get(lastInsertRowid) :
 
+const deleteTodo = async (id: number) => {
+    const result = db.query(`delete from todos where id = $id`).run({ $id: id })
+    return result
+}
 
 // === Controllers ===
 
@@ -149,5 +156,37 @@ export const pathTodosController = async (req: Request) => {
             return Response.json({ error: "Invalid JSON" }, { status: 400 })
         }
         return Response.json({ error: `Internal server error` }, { status: 500 })
+    }
+}
+
+interface RequestParams extends Request {
+    params: {
+        id: string
+    }
+}
+
+export const deleteTodosController = async (req: RequestParams) => {
+    try {
+        const idFromURL = req.params.id
+        const result = v.safeParse(deleteTodoSchema, { id: Number(idFromURL) })
+
+        if (!result.success) {
+            return Response.json(
+                { error: "Validation error", issues: result.issues },
+                { status: 400 }
+            )
+        }
+
+        const dbResult = await deleteTodo(result.output.id)
+
+        if (dbResult.changes === 0) {
+            return Response.json({ error: "Todo introuvable" }, { status: 404 })
+        }
+        return new Response(null, { status: 204 })
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            return Response.json({ error: "Invalid JSON" }, { status: 400 })
+        }
+        return Response.json({ error: "Internal server error " }, { status: 500 })
     }
 }

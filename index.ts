@@ -1,4 +1,4 @@
-import { postTodosController, getTodosController, pathTodosController } from "./db"
+import { postTodosController, getTodosController, pathTodosController, deleteTodosController } from "./db"
 
 const server = Bun.serve({
     port: 3000,
@@ -8,6 +8,9 @@ const server = Bun.serve({
             GET: () => getTodosController(),
             POST: (req) => postTodosController(req),
             PATCH: (req) => pathTodosController(req)
+        },
+        "/todo/:id": {
+            DELETE: (req) => deleteTodosController(req)
         }
     }
 })
