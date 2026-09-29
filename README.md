@@ -23,11 +23,6 @@ bun install
 
 ### Environment Variables
 
-Create a `.env` file (optional, defaults shown):
-
-```bash
-cp .env.example .env
-```
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -70,10 +65,10 @@ Content-Type: application/json
 **Request Body**
 ```json
 {
-  "title": "Learn Bun",           // required, non-empty string
-  "content": "Build a todo API",  // optional
-  "due_date": "2026-10-01",       // optional, ISO date or timestamp
-  "done": false                   // optional, defaults to false
+  "title": "Learn Bun",           
+  "content": "Build a todo API",  
+  "due_date": "2026-10-01",       
+  "done": false                  
 }
 ```
 ---
@@ -159,6 +154,7 @@ create table if not exists todos (
 
 ### CURL
 
+### 1. Terminal
 ```bash
 # Get all todos
 curl http://localhost:3000/todos
@@ -166,7 +162,7 @@ curl http://localhost:3000/todos
 # Create a todo
 curl -X POST http://localhost:3000/todos \
   -H "Content-Type: application/json" \
-  -d '{"title": "New task", "due_date": "2026-12-31"}'
+  -d '{"title": "New task", "due_date": "2026-12-31", "done": true}'
 
 # Update a todo
 curl -X PATCH http://localhost:3000/todos/1 \
@@ -179,7 +175,16 @@ curl -X DELETE http://localhost:3000/todos/1
 # Delete all todos
 curl -X DELETE http://localhost:3000/todos
 ```
+### 2. React Todo
+```
+    git clone <https://github.com/Jvapl/react-todos>
+    git cd react-todos
+```
 
+```
+    change url: https:http://localhost:3000
+    and dynamic url: '${url}/${id}'
+```
 ---
 
 ## Acknowledgements
