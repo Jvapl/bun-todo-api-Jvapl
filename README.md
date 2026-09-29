@@ -39,7 +39,7 @@ bun run --watch index.ts
 bun run index.ts
 ```
 
-Server starts at `http://localhost:3000`
+Server starts at `http://localhost:3000/`
 
 ---
 
