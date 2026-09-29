@@ -33,9 +33,13 @@ bun install
 
 ```bash
 # Development (auto-reload on file changes)
+bun run dev
+# or directly:
 bun run --watch index.ts
 
 # Production
+bun run start
+# or directly:
 bun run index.ts
 ```
 
