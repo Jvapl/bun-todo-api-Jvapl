@@ -1,4 +1,5 @@
-import { postTodosController, getTodosController, patchTodosController, deleteTodosController, handleOptions, deleteAllTodosController, corsHeader } from "./db"
+import { postTodosController, getTodosController, patchTodosController, deleteAllTodosController, deleteTodosController } from "./src/services/controllers/todo.controllers"
+import { handleOptions, corsHeader } from "./src/db"
 
 const server = Bun.serve({
     port: 3000,
