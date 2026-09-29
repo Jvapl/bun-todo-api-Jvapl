@@ -1,7 +1,19 @@
 import { Database } from "bun:sqlite";
 import * as v from "valibot"
 
+export const corsHeader = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, prefer"
+}
+
+export const handleOptions = () => new Response(null, {
+    status: 204,
+    headers: corsHeader
+});
+
 // === Valibot ===
+
 const isoDateOrTimestamp = v.union(
     [
         v.pipe(v.string(), v.isoDate()),
@@ -32,6 +44,8 @@ const deleteTodoSchema = v.object({
         v.integer()
     )
 })
+
+const patchTodoSchema = v.partial(toCreateTodoSchema)
 
 // v.object create an object that let me rule sending data
 // v.InferOutput<typeof todoSchema> create a "real type" usable for typeScript.
@@ -82,19 +96,25 @@ const createTodo = async (todo: toCreateTodo) => {
     return db.query("select * from todos where id = ?").get(lastInsertRowid);
 }
 
-const pathTodo = async (toUpdateTask: Todo) => {
-    const updateTodo = db.prepare(`
-            update todos set title = $title, content = $content ,due_date = $date, done = $done where id = $id `)
+const patchTodo = (id: number, patch: Partial<toCreateTodo>) => {
+    const existing = db.query("select * from todos where id = $id").get({ $id: id }) as Todo | null
+    if (!existing) return null
 
-    updateTodo.run({
-        $id: toUpdateTask.id,
-        $title: toUpdateTask.title,
-        $content: toUpdateTask.content,
-        $date: toUpdateTask.due_date || null,
-        $done: toUpdateTask.done ? 1 : 0,
+    const merged = { ...existing, ...patch }
+
+    db.query(`
+        update todos
+        set title = $title, content = $content, due_date = $due_date, done = $done
+        where id = $id`
+    ).run({
+        $id: id,
+        $title: merged.title,
+        $content: merged.content,
+        $due_date: merged.due_date ?? null,
+        $done: merged.done,
     })
 
-    return await db.query(`select * from todos where id = ? `).get(toUpdateTask.id)
+    return db.query("select * from todos where id = ?").get(id)
 }
 
 // body : unknown its the function doesn't know what he's going to get that's why unknown
@@ -105,14 +125,18 @@ const deleteTodo = async (id: number): Promise<{ changes: number, lastInsertRowi
     return result
 }
 
+const deleteAllTodos = async () => {
+    db.query("delete from todos").run()
+}
+
 // === Controllers ===
 
 export const getTodosController = async () => {
     try {
         const todos = await getTodos();
-        return Response.json(todos);
+        return Response.json(todos, { headers: corsHeader });
     } catch {
-        return Response.json({ error: `Internal server error` }, { status: 500 })
+        return Response.json({ error: `Internal server error` }, { status: 500, headers: corsHeader })
     }
 }
 
@@ -123,43 +147,63 @@ export const postTodosController = async (req: Request) => {
         if (!result.success) {
             return Response.json(
                 { error: "Validation error", issues: result.issues },
-                { status: 400 }
+                { status: 400, headers: corsHeader }
             );
         }
         const created = await createTodo(result.output);
-        return Response.json(created, { status: 201 });
+        return Response.json(created, { status: 201, headers: corsHeader });
 
     } catch (error) {
         if (error instanceof SyntaxError) {
-            return Response.json({ error: "Invalid JSON" }, { status: 400 })
+            return Response.json({ error: "Invalid JSON" }, { status: 400, headers: corsHeader })
         }
-        return Response.json({ error: `Internal server error` }, { status: 500 });
+        return Response.json({ error: `Internal server error` }, { status: 500, headers: corsHeader });
     }
 }
 
 // safeParse Parses an unknown input based on a schema.
 // instanceof check if the data was created with the right type
 
-export const pathTodosController = async (req: Request) => {
-    if (!req.json) {
-        return Response.json({ error: `Nothing to Update`, status: 200 })
-    }
+export const patchTodosController = async (req: RequestParams) => {
     try {
-        const body = await req.json();
-        const result = v.safeParse(todoSchema, body);
+        const idParamSchema = v.object({
+            id: v.pipe(
+                v.string(),
+                v.digits("Invalid ID"),
+                v.transform(Number),
+                v.minValue(1)
+            )
+        })
+        //  v.digits accepts only 0-9 numbers 
+        //  Params holds the variable parts of the URL
+        const idResult = v.safeParse(idParamSchema, { id: req.params.id })
+
+        if (!idResult.success) {
+            return Response.json(
+                { error: "Validation error", issues: idResult.issues },
+                { status: 400, headers: corsHeader }
+            )
+        }
+
+        const body = await req.json()
+        const result = v.safeParse(patchTodoSchema, body)
         if (!result.success) {
             return Response.json(
                 { error: "Validation error", issues: result.issues },
-                { status: 400 }
+                { status: 400, headers: corsHeader }
             )
         }
-        const updated = await pathTodo(result.output)
-        return Response.json(updated, { status: 200 })
+        const updated = patchTodo(idResult.output.id, result.output)
+
+        if (!updated) {
+            return Response.json({ error: "Todo not found" }, { status: 404, headers: corsHeader })
+        }
+        return Response.json(updated, { status: 200, headers: corsHeader })
     } catch (error) {
         if (error instanceof SyntaxError) {
-            return Response.json({ error: "Invalid JSON" }, { status: 400 })
+            return Response.json({ error: "Invalid JSON" }, { status: 400, headers: corsHeader })
         }
-        return Response.json({ error: `Internal server error` }, { status: 500 })
+        return Response.json({ error: `Internal server error` }, { status: 500, headers: corsHeader })
     }
 }
 
@@ -176,20 +220,29 @@ export const deleteTodosController = async (req: RequestParams) => {
         if (!result.success) {
             return Response.json(
                 { error: "Validation error", issues: result.issues },
-                { status: 400 }
+                { status: 400, headers: corsHeader }
             )
         }
 
         const dbResult = await deleteTodo(result.output.id)
 
         if (dbResult.changes === 0) {
-            return Response.json({ error: "Todo introuvable" }, { status: 404 })
+            return Response.json({ error: "Todo introuvable" }, { status: 404, headers: corsHeader })
         }
-        return new Response(null, { status: 204 })
+        return new Response(null, { status: 204, headers: corsHeader })
     } catch (error) {
         if (error instanceof SyntaxError) {
-            return Response.json({ error: "Invalid JSON" }, { status: 400 })
+            return Response.json({ error: "Invalid JSON" }, { status: 400, headers: corsHeader })
         }
-        return Response.json({ error: "Internal server error " }, { status: 500 })
+        return Response.json({ error: "Internal server error " }, { status: 500, headers: corsHeader })
+    }
+}
+
+export const deleteAllTodosController = async () => {
+    try {
+        await deleteAllTodos()
+        return new Response(null, { status: 204, headers: corsHeader })
+    } catch {
+        return Response.json({ error: "Internal server error" }, { status: 500, headers: corsHeader })
     }
 }
