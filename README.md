@@ -33,13 +33,17 @@ bun install
 
 ```bash
 # Development (auto-reload on file changes)
+bun run dev
+# or directly:
 bun run --watch index.ts
 
 # Production
+bun run start
+# or directly:
 bun run index.ts
 ```
 
-Server starts at `http://localhost:3000`
+Server starts at `http://localhost:3000/`
 
 ---
 
